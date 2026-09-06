@@ -462,11 +462,16 @@ async function extractSceleData() {
                 
                 // Create a duplicate entry for last post if different from first
                 if (postDates.last && postDates.first !== postDates.last) {
-                  assignments.push({
+                  const lastPostItem = {
                     ...item,
                     deadline: postDates.last,
-                    lastPost: true // Mark as last post
-                  });
+                    lastPost: true, // Mark as last post
+                    datePosted: false // Remove datePosted flag
+                  };
+                  delete lastPostItem.datePosted; // Ensure datePosted is not present
+                  lastPostItem.lastPost = true;
+                  
+                  assignments.push(lastPostItem);
                   console.log(`      → Forum last post: ${postDates.last}`);
                 }
               } catch (error) {
