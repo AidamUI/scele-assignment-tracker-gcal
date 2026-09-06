@@ -1,0 +1,25 @@
+{
+  "name": "scele-calendar-sync",
+  "version": "1.0.0",
+  "description": "Automated SCELE assignment sync to Google Calendar",
+  "main": "runner.js",
+  "type": "module",
+  "scripts": {
+    "start": "node runner-direct.js",
+    "test": "node runner-direct.js",
+    "start:extension": "node runner.js"
+  },
+  "keywords": [
+    "scele",
+    "google-calendar",
+    "automation",
+    "playwright"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "googleapis": "^128.0.0",
+    "dotenv": "^16.3.1"
+  }
+}

@@ -1,0 +1,76 @@
+name: SCELE to Google Calendar Sync
+
+on:
+  # Run every 3 hours
+  schedule:
+    - cron: '0 */3 * * *'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Xvfb and dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-xserver-utils xauth
+
+      - name: Setup Chrome Extension
+        run: |
+          mkdir -p extension
+          # Note: The extension files should be committed to the repository
+          # or downloaded from a secure location
+          echo "Extension directory created"
+
+      - name: Create service account credentials file
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}' > service-account.json
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          SCELE_USERNAME=${{ secrets.SCELE_USERNAME }}
+          SCELE_PASSWORD=${{ secrets.SCELE_PASSWORD }}
+          GOOGLE_CALENDAR_ID=${{ secrets.GOOGLE_CALENDAR_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
+          EXTENSION_PATH=./extension
+          EOF
+
+      - name: Run sync with Xvfb
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" \
+          node runner-direct.js
+
+      - name: Upload debug screenshot (if exists)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: debug-screenshot.png
+          if-no-files-found: ignore
+
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          rm -f service-account.json
+          rm -f .env
+
+# Made with Bob
