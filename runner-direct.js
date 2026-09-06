@@ -274,8 +274,17 @@ async function extractSceleData() {
   try {
     console.log('🚀 Launching browser...');
     
+    // Use headless mode in CI, non-headless locally for debugging
+    const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+    
     browser = await chromium.launch({
-      headless: false,
+      headless: isCI, // Headless in CI, visible locally
+      args: isCI ? [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ] : []
     });
 
     context = await browser.newContext({
@@ -286,12 +295,12 @@ async function extractSceleData() {
 
     console.log('🔐 Navigating to SCELE login page...');
     await page.goto('https://scele.cs.ui.ac.id/login/index.php', {
-      waitUntil: 'networkidle',
-      timeout: 60000,
+      waitUntil: 'domcontentloaded', // Changed from networkidle for faster loading
+      timeout: 90000, // Increased timeout for CI
     });
 
     console.log('⏳ Waiting for CAS SSO login form...');
-    await page.waitForSelector('input[name="username"]', { timeout: 30000 });
+    await page.waitForSelector('input[name="username"]', { timeout: 60000 }); // Increased timeout
 
     console.log('📝 Filling in credentials...');
     await page.fill('input[name="username"]', SCELE_USERNAME);
@@ -302,9 +311,12 @@ async function extractSceleData() {
 
     console.log('⏳ Waiting for redirect to SCELE dashboard...');
     await page.waitForURL('**/scele.cs.ui.ac.id/**', {
-      timeout: 60000,
-      waitUntil: 'networkidle',
+      timeout: 90000, // Increased timeout for CI
+      waitUntil: 'domcontentloaded', // Changed from networkidle
     });
+    
+    // Extra wait to ensure page is fully loaded
+    await page.waitForTimeout(3000);
 
     console.log('✅ Successfully logged in to SCELE');
 
@@ -330,6 +342,12 @@ async function extractSceleData() {
     });
 
     console.log(`📋 Found ${courses.length} courses`);
+    
+    // Log all course titles for debugging
+    if (courses.length > 0) {
+      console.log('📝 All courses found:');
+      courses.forEach(c => console.log(`   - ${c.title}`));
+    }
 
     // Filter for 2026/2027 academic year only
     const filteredCourses = courses.filter(course => {
@@ -342,6 +360,13 @@ async function extractSceleData() {
     });
 
     console.log(`📚 Filtered to ${filteredCourses.length} courses for 2026/2027 academic year`);
+    
+    if (filteredCourses.length > 0) {
+      console.log('✅ Filtered courses:');
+      filteredCourses.forEach(c => console.log(`   - ${c.title}`));
+    } else {
+      console.warn('⚠️ No courses matched the 2026/2027 filter!');
+    }
 
     const allAssignments = [];
 
@@ -350,7 +375,13 @@ async function extractSceleData() {
       console.log(`  📖 Checking course: ${course.title}`);
       
       try {
-        await page.goto(course.url, { waitUntil: 'networkidle', timeout: 30000 });
+        await page.goto(course.url, {
+          waitUntil: 'domcontentloaded', // Changed from networkidle
+          timeout: 60000 // Increased timeout
+        });
+        
+        // Wait for course content to load
+        await page.waitForTimeout(2000);
         
         const assignments = await page.evaluate((courseName) => {
           const items = [];
