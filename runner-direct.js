@@ -408,8 +408,25 @@ async function extractSceleData() {
             let name = '';
             if (nameSpan) {
               const clone = nameSpan.cloneNode(true);
+              // Remove hidden accessibility text
               clone.querySelectorAll('.accesshide').forEach(e => e.remove());
               name = clone.textContent.trim();
+            }
+            
+            // Fallback: try to get name from link text if instancename is empty
+            if (!name && link) {
+              name = link.textContent.trim();
+            }
+            
+            // Fallback: try to get from title attribute
+            if (!name && link) {
+              name = link.getAttribute('title') || '';
+            }
+            
+            // If still no name, skip this item
+            if (!name) {
+              console.warn(`Skipping item with no name: ${url}`);
+              continue;
             }
             
             let deadline = '';
@@ -444,6 +461,10 @@ async function extractSceleData() {
         
         if (assignments.length > 0) {
           console.log(`    ✓ Found ${assignments.length} items`);
+          // Log what was found for debugging
+          assignments.forEach(item => {
+            console.log(`      - ${item.type}: "${item.name}" ${item.deadline ? `(${item.deadline})` : '(no deadline)'}`);
+          });
           
           // For forums and announcements without deadlines, fetch both first and last post dates
           for (const item of assignments) {
